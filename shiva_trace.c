@@ -98,6 +98,7 @@ shiva_trace_write(struct shiva_ctx *ctx, pid_t pid, void *dst,
 {
 	size_t rem = len % sizeof(void *);
 	size_t quot = len / sizeof(void *);
+	size_t mprotect_len = 4096;
 	uint8_t *s = (uint8_t *)src;
 	uint8_t *d = (uint8_t *)dst;
 	uint64_t aligned_vaddr;
@@ -105,19 +106,33 @@ shiva_trace_write(struct shiva_ctx *ctx, pid_t pid, void *dst,
 	bool res;
 	int ret, o_prot;
 
+	if (len > PAGE_SIZE) {
+		shiva_error_set(error, "shiva_trace_write pid(%d) at %#lx failed: "
+		    "invalid argument, len cannot exceed 4096\n");
+		return false;
+	}
 	if (shiva_maps_prot_by_addr(ctx, (uint64_t)addr, &o_prot) == false) {
-	    shiva_error_set(error, "shiva_trace_write pid(%d) at %#lx failed: "
-	    "cannot find memory protection\n", pid, (uint64_t)addr);
+		shiva_error_set(error, "shiva_trace_write pid(%d) at %#lx failed: "
+	    	    "cannot find memory protection\n", pid, (uint64_t)addr);
 		return false;
 	}
 
 	shiva_debug("Inside shiva_trace_write\n");
 	aligned_vaddr = (uint64_t)addr;
 	aligned_vaddr &= ~4095;
+
+	/*
+	 * NOTE! If our write exceeds the current page, then we must mprotect
+	 * the following mapped page to be writable as well.
+	 */
+	if ((uint64_t)((uint8_t *)d + len) >= aligned_vaddr + 4096) {
+		mprotect_len = 4096 * 2;
+	}
+
 	/*
 	 * Make virtual address writable if it is not.
 	 */
-	ret = mprotect((void *)aligned_vaddr, 4096, PROT_READ|PROT_WRITE);
+	ret = mprotect((void *)aligned_vaddr, mprotect_len, o_prot|PROT_WRITE);
 	if (ret < 0) {
 		shiva_error_set(error, "poke pid (%d) at %#lx failed: "
 		    "mprotect failure: %s\n", pid, (uint64_t)addr, strerror(errno));
@@ -127,11 +142,11 @@ shiva_trace_write(struct shiva_ctx *ctx, pid_t pid, void *dst,
 	/*
 	 * Copy data to target addr
 	 */
-	memcpy(d, s, len);
+	shiva_memcpy(d, s, len);
 	/*
 	 * Reset memory protection
 	 */
-	ret = mprotect((void *)aligned_vaddr, 4096, o_prot);
+	ret = mprotect((void *)aligned_vaddr, mprotect_len, o_prot);
 	if (ret < 0) {
 		shiva_error_set(error, "shiva_trace_write_pid(%d) at %#lx failed: "
 		    "mprotect failure: %s\n", pid, (uint64_t)addr, strerror(errno));

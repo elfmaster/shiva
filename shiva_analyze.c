@@ -14,6 +14,7 @@ shiva_analyze_find_calls(struct shiva_ctx *ctx)
 	int64_t call_offset;
 	int bits;
 
+	printf("Current address: %#lx\n", current_address);
 	if (elf_section_by_name(&ctx->elfobj, ".text", &section) == false) {
 		fprintf(stderr, "elf_section_by_name() failed\n");
 		return false;
@@ -27,6 +28,10 @@ shiva_analyze_find_calls(struct shiva_ctx *ctx)
 		struct shiva_branch_site *tmp;
 		size_t insn_len = ud_insn_len(&ctx->disas.ud_obj);
 
+		if ((current_address + insn_len) >= section.address + section.size) {
+			printf("%#lx larger than .text, breaking\n");
+			break;
+		}
 		shiva_debug("insn_len: %zu\n", insn_len);
 		memset(&symbol, 0, sizeof(symbol));
 
@@ -34,14 +39,15 @@ shiva_analyze_find_calls(struct shiva_ctx *ctx)
 			current_address += insn_len;
 			continue;
 		}
-		shiva_debug("%-20s %s\n", ud_insn_hex(&ctx->disas.ud_obj),
-		    ud_insn_asm(&ctx->disas.ud_obj));
 		ptr = ud_insn_ptr(&ctx->disas.ud_obj);
 		assert(ptr != NULL);
 		if (ptr[0] != 0xe8) {
 			current_address += insn_len;
 			continue;
 		}
+		printf("%#lx\t%-20s %s\n", current_address, ud_insn_hex(&ctx->disas.ud_obj),
+                    ud_insn_asm(&ctx->disas.ud_obj));
+
 		tmp = calloc(1, sizeof(*tmp));
 		if (tmp == NULL) {
 			perror("calloc");
@@ -90,6 +96,7 @@ shiva_analyze_find_calls(struct shiva_ctx *ctx)
 		memcpy(&tmp->symbol, &symbol, sizeof(symbol));
 		tmp->branch_type = SHIVA_BRANCH_CALL;
 		tmp->branch_site = call_site;
+		printf("Inserting callsite: %#lx\n", tmp->branch_site);
 		TAILQ_INSERT_TAIL(&ctx->tailq.branch_tqlist, tmp, _linkage);
 		current_address += insn_len;
 	}

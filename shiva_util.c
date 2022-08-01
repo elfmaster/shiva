@@ -36,6 +36,20 @@ shiva_malloc(size_t len)
 }
 
 
+void *
+shiva_memcpy(void *dest, const void *src, size_t n)
+{
+	int i;
+	uint8_t *s = (uint8_t *)src;
+	uint8_t *d = (uint8_t *)dest;
+
+	for (i = 0; i < n; i++) {
+		*d = *s;
+		d++, s++;
+	}
+	return dest;
+}
+
 char * shiva_itoa(long x, char *t)
 {
 	int i;

@@ -415,7 +415,6 @@ int main(int argc, char **argv, char **envp)
 		fprintf(stderr, "shiva_module_loader failed\n");
 		exit(EXIT_FAILURE);
 	}
-
 	/*
 	 * XXX: In the event that our module installed .got.plt hooks, we
 	 * must disable DT_BINDNOW before passing control to the RTLD, otherwise

@@ -45,7 +45,8 @@
 #define SHIVA_STACK_SIZE	(PAGE_SIZE * 1000)
 
 #define SHIVA_LDSO_BASE		0x6000000
-#define SHIVA_TARGET_BASE	0x7f20898e0000
+#define SHIVA_TARGET_BASE	0x1000000
+#define SHIVA_STANDALONE_BASE 	0x40000000
 
 #define SHIVA_MODULE_F_RUNTIME	(1UL << 0)
 #define SHIVA_MODULE_F_INIT	(1UL << 1)
@@ -323,7 +324,7 @@ extern struct shiva_ctx *ctx_global;
 char * shiva_strdup(const char *);
 char * shiva_xfmtstrdup(char *, ...);
 void * shiva_malloc(size_t);
-
+void * shiva_memcpy(void *, const void *, size_t);
 /*
  * signal.c
  */

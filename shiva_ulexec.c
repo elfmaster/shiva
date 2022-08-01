@@ -263,17 +263,26 @@ shiva_ulexec_load_elf_binary(struct shiva_ctx *ctx, elfobj_t *elfobj, bool inter
 			int mmap_flags = MAP_ANONYMOUS|MAP_PRIVATE;
 
 			mmap_flags |= !(ctx->flags & SHIVA_OPTS_F_INTERP_MODE) ? MAP_32BIT : 0;
-			if (ctx->flags & SHIVA_OPTS_F_INTERP_MODE) {
-				base_vaddr = 0x1000000;
+
+			if (interpreter == true) {
+		//	if (ctx->flags & SHIVA_OPTS_F_INTERP_MODE) {
+				base_vaddr = SHIVA_TARGET_BASE;
 				mmap_flags |= MAP_FIXED;
+			} else {
+				base_vaddr = 0x40000000;
 			}
-			//base_vaddr = (interpreter == false ? SHIVA_TARGET_BASE : SHIVA_LDSO_BASE);
 			shiva_debug("Attempting to map %#lx\n", base_vaddr);
 			mem = mmap((void *)base_vaddr, phdr.memsz, PROT_READ|PROT_WRITE, mmap_flags, -1, 0);
 			if (mem == MAP_FAILED) {
 				perror("mmap");
 				exit(EXIT_FAILURE);
 			}
+
+			if (madvise(mem, phdr.memsz, MADV_UNMERGEABLE) < 0) {
+				perror("madvise");
+				exit(EXIT_FAILURE);
+			}
+
 			base_vaddr = (uint64_t)mem;
 			//mem = (uint8_t *)base_vaddr;
 			res = shiva_ulexec_segment_copy(elfobj, mem, phdr);
@@ -308,7 +317,12 @@ shiva_ulexec_load_elf_binary(struct shiva_ctx *ctx, elfobj_t *elfobj, bool inter
 		mem = mmap((void *)load_addr, memsz, PROT_READ|PROT_WRITE,
 		    MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED, -1, 0);
 		if (mem == MAP_FAILED) {
+			perror("mmap");
 			shiva_debug("mmap failed: %s\n", strerror(errno));
+			exit(EXIT_FAILURE);
+		}
+		if (madvise(mem, memsz, MADV_UNMERGEABLE) < 0) {
+			perror("madvise");
 			exit(EXIT_FAILURE);
 		}
 		shiva_ulexec_segment_copy(elfobj, &mem[phdr.vaddr & (PAGE_SIZE - 1)], phdr);
@@ -394,6 +408,5 @@ shiva_ulexec_prep(struct shiva_ctx *ctx)
 	prctl(PR_SET_MM, PR_SET_MM_AUXV, (unsigned long)ctx->ulexec.auxv.vector,
 	    20);
 #endif
-
 	return true;
 }
