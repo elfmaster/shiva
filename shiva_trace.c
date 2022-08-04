@@ -96,8 +96,7 @@ bool
 shiva_trace_write(struct shiva_ctx *ctx, pid_t pid, void *dst,
     const void *src, size_t len, shiva_error_t *error)
 {
-	size_t rem = len % sizeof(void *);
-	size_t quot = len / sizeof(void *);
+	size_t aligned_len;
 	uint8_t *s = (uint8_t *)src;
 	uint8_t *d = (uint8_t *)dst;
 	uint64_t aligned_vaddr;
@@ -110,14 +109,16 @@ shiva_trace_write(struct shiva_ctx *ctx, pid_t pid, void *dst,
 	    "cannot find memory protection\n", pid, (uint64_t)addr);
 		return false;
 	}
-
-	shiva_debug("Inside shiva_trace_write\n");
-	aligned_vaddr = (uint64_t)addr;
-	aligned_vaddr &= ~4095;
+	aligned_vaddr = ELF_PAGESTART((uint64_t)addr);
+	aligned_len = ELF_PAGEALIGN(len, PAGE_SIZE);
+	if (addr + len > aligned_vaddr + aligned_len) {
+		printf("INCREASING ALIGN LEN\n");
+		aligned_len += PAGE_SIZE;
+	}
 	/*
 	 * Make virtual address writable if it is not.
 	 */
-	ret = mprotect((void *)aligned_vaddr, 4096, PROT_READ|PROT_WRITE);
+	ret = mprotect((void *)aligned_vaddr, aligned_len, PROT_READ|PROT_WRITE);
 	if (ret < 0) {
 		shiva_error_set(error, "poke pid (%d) at %#lx failed: "
 		    "mprotect failure: %s\n", pid, (uint64_t)addr, strerror(errno));
@@ -131,7 +132,7 @@ shiva_trace_write(struct shiva_ctx *ctx, pid_t pid, void *dst,
 	/*
 	 * Reset memory protection
 	 */
-	ret = mprotect((void *)aligned_vaddr, 4096, o_prot);
+	ret = mprotect((void *)aligned_vaddr, aligned_len, o_prot);
 	if (ret < 0) {
 		shiva_error_set(error, "shiva_trace_write_pid(%d) at %#lx failed: "
 		    "mprotect failure: %s\n", pid, (uint64_t)addr, strerror(errno));
