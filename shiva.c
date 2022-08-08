@@ -287,7 +287,7 @@ int main(int argc, char **argv, char **envp)
 	sigset_t set;
 	shiva_maps_iterator_t maps_iter;
 	struct shiva_mmap_entry mmap_entry;
-	char *path, *p, *target_path;
+	char *p, *target_path;
 
 	/*
 	 * Initialize everything in the context.
@@ -297,7 +297,7 @@ int main(int argc, char **argv, char **envp)
 	/*
 	 * Determine whether we are in interpreter mode
 	 */
-	target_path = realpath("/proc/self/exe", path);
+	target_path = realpath("/proc/self/exe", NULL);
 	if (target_path == NULL) {
 		fprintf(stderr, "realpath failed: %s\n", strerror(errno));
 		exit(EXIT_FAILURE);

@@ -262,12 +262,12 @@ shiva_ulexec_load_elf_binary(struct shiva_ctx *ctx, elfobj_t *elfobj, bool inter
 		if (phdr.offset == 0) {
 			int mmap_flags = MAP_ANONYMOUS|MAP_PRIVATE;
 
-			mmap_flags |= !(ctx->flags & SHIVA_OPTS_F_INTERP_MODE) ? MAP_32BIT : 0;
-			if (ctx->flags & SHIVA_OPTS_F_INTERP_MODE) {
-				base_vaddr = 0x1000000;
-				mmap_flags |= MAP_FIXED;
+			mmap_flags |= !(ctx->flags & SHIVA_OPTS_F_INTERP_MODE) ? MAP_FIXED : 0;
+			if (interpreter == true) {
+				base_vaddr = SHIVA_LDSO_BASE;
+			} else {
+				base_vaddr = SHIVA_TARGET_BASE;
 			}
-			//base_vaddr = (interpreter == false ? SHIVA_TARGET_BASE : SHIVA_LDSO_BASE);
 			shiva_debug("Attempting to map %#lx\n", base_vaddr);
 			mem = mmap((void *)base_vaddr, phdr.memsz, PROT_READ|PROT_WRITE, mmap_flags, -1, 0);
 			if (mem == MAP_FAILED) {

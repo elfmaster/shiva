@@ -112,7 +112,6 @@ shiva_trace_write(struct shiva_ctx *ctx, pid_t pid, void *dst,
 	aligned_vaddr = ELF_PAGESTART((uint64_t)addr);
 	aligned_len = ELF_PAGEALIGN(len, PAGE_SIZE);
 	if (addr + len > aligned_vaddr + aligned_len) {
-		printf("INCREASING ALIGN LEN\n");
 		aligned_len += PAGE_SIZE;
 	}
 	/*
