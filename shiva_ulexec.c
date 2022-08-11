@@ -22,13 +22,14 @@ shiva_ulexec_allocstack(struct shiva_ctx *ctx)
 static bool
 shiva_ulexec_build_auxv_stack(struct shiva_ctx *ctx, uint64_t *out, Elf64_auxv_t **auxv_ptr)
 {
-	uint64_t *esp, *sp, *envp, *argv;
+	uint64_t *esp;
 	uint64_t esp_start;
-	int i, count, totalsize, stroffset, len, argc;
+	int i, totalsize, len, argc;
 	uint8_t *stack;
 	char *strdata, *s;
 	shiva_auxv_iterator_t a_iter;
 	struct shiva_auxv_entry a_entry;
+	size_t count = 0;
 
 	count += sizeof(argc);
 	count += ctx->argc * sizeof(char *);
@@ -47,7 +48,7 @@ shiva_ulexec_build_auxv_stack(struct shiva_ctx *ctx, uint64_t *out, Elf64_auxv_t
 	}
 	shiva_debug("STACK: %p\n", stack);
 	esp = (uint64_t *)stack;
-	sp = esp = esp - (totalsize / sizeof(void *));
+	esp = esp - (totalsize / sizeof(void *));
 	esp_start = (uint64_t)esp;
 	/*
 	 * strdata points to the end of the auxiliary vector
@@ -191,7 +192,6 @@ shiva_ulexec_segment_copy(elfobj_t *elfobj, uint8_t *dst,
 	size_t rem = segment.filesz % sizeof(uint64_t);
 	uint64_t qword;
 	bool res;
-	uint8_t byte;
 	size_t i = 0;
 
 	shiva_debug("Remainder: %d bytes\n", rem);
@@ -229,21 +229,19 @@ shiva_ulexec_segment_copy(elfobj_t *elfobj, uint8_t *dst,
 bool
 shiva_ulexec_load_elf_binary(struct shiva_ctx *ctx, elfobj_t *elfobj, bool interpreter)
 {
-	uint64_t vaddr;
 	bool res;
 	elf_iterator_res_t ires;
 	elf_segment_iterator_t phdr_iter;
 	struct elf_segment phdr;
-	bool load_addr_set = false;
-	uint64_t elf_bss = 0, last_bss = 0;
-	uint64_t load_addr, map_addr, mapped;
-	uint64_t last_vaddr, last_memsz, last_offset, base_vaddr;
+	uint64_t load_addr;
+	uint64_t base_vaddr;
 	uint8_t *mem;
-	struct elf_symbol sym;
+	size_t memsz;
+	int fd = elf_fd(elfobj);
 
 	elf_segment_iterator_init(elfobj, &phdr_iter);
 	for (;;) {
-		uint32_t elfprot, bss_prot;
+		uint32_t elfprot;
 
 		ires = elf_segment_iterator_next(&phdr_iter, &phdr);
 		if (ires == ELF_ITER_DONE)
@@ -283,20 +281,17 @@ shiva_ulexec_load_elf_binary(struct shiva_ctx *ctx, elfobj_t *elfobj, bool inter
 				return false;
 			}
 			if (mprotect(mem,
-			    phdr.memsz + 4095 & ~4095, elfprot) < 0) {
+			    (phdr.memsz + 4095) & ~4095, elfprot) < 0) {
 				shiva_debug("mprotect: %s\n", strerror(errno));
 				return false;
 			}
 			shiva_debug("mprotect succeeded at %p %zu bytes\n", mem, phdr.memsz);
-			last_vaddr = base_vaddr + phdr.vaddr;
-			last_memsz = phdr.memsz;
-			last_offset = phdr.offset;
 			continue;
 		}
 		load_addr = base_vaddr + phdr.vaddr;
 		load_addr = ELF_PAGESTART(load_addr);
 		shiva_debug("Mapping segment: %#lx of size %zu\n", load_addr, phdr.memsz);
-		unsigned long memsz = phdr.memsz;
+		memsz = phdr.memsz;
 		if (phdr.flags == (PF_R|PF_W)) {
 			/*
 			 * If this is the data segment map enough room for
@@ -312,14 +307,11 @@ shiva_ulexec_load_elf_binary(struct shiva_ctx *ctx, elfobj_t *elfobj, bool inter
 			exit(EXIT_FAILURE);
 		}
 		shiva_ulexec_segment_copy(elfobj, &mem[phdr.vaddr & (PAGE_SIZE - 1)], phdr);
-		if (mprotect(mem, phdr.memsz + 4095 & ~4095,
+		if (mprotect(mem, (phdr.memsz + 4095) & ~4095,
 		    elfprot) < 0) {
 			shiva_debug("mprotect: %s\n", strerror(errno));
 			return false;
 		}
-		last_vaddr = load_addr;
-		last_memsz = phdr.memsz;
-		last_offset = phdr.offset;
 	}
 	if (interpreter == false) {
 		shiva_debug("Setting entry point for target: %#lx\n", base_vaddr + elf_entry_point(elfobj));
@@ -380,9 +372,6 @@ shiva_ulexec_prep(struct shiva_ctx *ctx)
 		fprintf(stderr, "shiva_ulexec_build_auxv_stack() failed\n");
 		return false;
 	}
-	shiva_auxv_iterator_t a_iter;
-	struct shiva_auxv_entry a_entry;
-
 #if 0
 	shiva_auxv_iterator_init(ctx, &a_iter, ctx->ulexec.auxv.vector);
 	while (shiva_auxv_iterator_next(&a_iter, &a_entry) == SHIVA_ITER_OK) {

@@ -73,14 +73,8 @@ resolve_pltgot_entries(struct shiva_module *linker)
 {
 	uint64_t gotaddr;
 	uint64_t *GOT;
-	elf_error_t error;
-	elf_relocation_iterator_t rel_iter;
-	struct elf_relocation rel;
-	struct elf_symbol symbol;
 	struct shiva_module_got_entry *current = NULL;
-	int i;
 
-	i = 0;
 	gotaddr = linker->data_vaddr + linker->pltgot_off;
 
 	TAILQ_FOREACH(current, &linker->tailq.got_list, _linkage) {
@@ -500,7 +494,6 @@ calculate_data_size(struct shiva_module *linker)
 	elf_section_iterator_t iter;
 	struct elf_relocation rel;
 	elf_relocation_iterator_t rel_iter;
-	struct elf_segment segment;
 	struct shiva_module_got_entry *got_entry;
 	ENTRY e, *ep;
 	uint64_t offset;
@@ -630,8 +623,6 @@ create_data_image(struct shiva_ctx *ctx, struct shiva_module *linker)
 	size_t data_size_aligned;
 	size_t off = 0;
 	size_t count = 0;
-	uint64_t vaddr;
-	int i;
 
 	if (linker->data_size == 0) {
 		shiva_debug("No data segment is needed\n");
@@ -702,11 +693,9 @@ create_text_image(struct shiva_ctx *ctx, struct shiva_module *linker)
 	elf_relocation_iterator_t rel_iter;
 	struct elf_relocation rel;
 	bool res;
-	uint8_t *mem;
 	size_t text_size_aligned;
 	size_t off = 0;
 	size_t count = 0;
-	uint64_t vaddr;
 	int i;
 
 	/*
