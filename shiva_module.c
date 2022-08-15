@@ -741,8 +741,9 @@ create_text_image(struct shiva_ctx *ctx, struct shiva_module *linker)
 			    elf_pathname(&linker->elfobj));
 		}
 	} else {
-		mmap_base = 0;
+		mmap_base = 0x6000000;
 		mmap_flags |= MAP_32BIT;
+		mmap_flags |= MAP_FIXED;
 	}
 	text_size_aligned = ELF_PAGEALIGN(linker->text_size, PAGE_SIZE);
 	linker->text_mem = mmap((void *)mmap_base, text_size_aligned, PROT_READ|PROT_WRITE|PROT_EXEC,

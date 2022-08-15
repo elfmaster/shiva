@@ -57,6 +57,7 @@ shiva_ulexec_build_auxv_stack(struct shiva_ctx *ctx, uint64_t *out, Elf64_auxv_t
 	 * the shiva_ulexec_save_stack() function.
 	 */
 	strdata = (char *)(esp_start + count);
+	printf("strdata: %p\n", strdata);
 	s = ctx->ulexec.argstr;
 	*esp++ = ctx->argc;
 	for (argc = ctx->argc; argc > 0; argc--) {
@@ -100,6 +101,9 @@ shiva_ulexec_build_auxv_stack(struct shiva_ctx *ctx, uint64_t *out, Elf64_auxv_t
 		case AT_ENTRY:
 			auxv->a_un.a_val = ctx->ulexec.entry_point;
 			break;
+		case AT_EXECFN:
+			auxv->a_un.a_val = (uint64_t)(char *)ctx->path;
+			break;
 		case AT_FLAGS:
 			/*
 			 * SPECIAL NOTE: We overwrite the flags entry with
@@ -107,7 +111,8 @@ shiva_ulexec_build_auxv_stack(struct shiva_ctx *ctx, uint64_t *out, Elf64_auxv_t
 			 * then passed into %rdi before calling the module
 			 * code.
 			 */
-			//auxv->a_un.a_val = (uint64_t)ctx;
+			//auxv->a_un.a_val = DT_BIND_NOW; //(uint64_t)ctx;
+			//break;
 		default:
 			auxv->a_un.a_val = a_entry.value;
 			break;
@@ -120,6 +125,7 @@ shiva_ulexec_build_auxv_stack(struct shiva_ctx *ctx, uint64_t *out, Elf64_auxv_t
 	 * of our stack setup.
 	 */
 	*out = (uint64_t)esp_start;
+	printf("ESP START (&argc): %#lx\n", esp_start);
 	return esp_start;
 }
 
