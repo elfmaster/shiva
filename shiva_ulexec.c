@@ -107,15 +107,14 @@ shiva_ulexec_build_auxv_stack(struct shiva_ctx *ctx, uint64_t *out, Elf64_auxv_t
 			 * then passed into %rdi before calling the module
 			 * code.
 			 */
-			auxv->a_un.a_val = (uint64_t)ctx;
-			break;
+			//auxv->a_un.a_val = (uint64_t)ctx;
 		default:
 			auxv->a_un.a_val = a_entry.value;
 			break;
 		}
 		auxv++;
 	}
-	auxv->a_un.a_val = AT_NULL;
+	auxv->a_type = AT_NULL;
 	/*
 	 * Set the out value to the stack address that is &argc -- the beginning
 	 * of our stack setup.
@@ -257,22 +256,30 @@ shiva_ulexec_load_elf_binary(struct shiva_ctx *ctx, elfobj_t *elfobj, bool inter
 			shiva_debug("PROT_WRITE\n");
 		if (elfprot & PROT_EXEC)
 			shiva_debug("PROT_EXEC\n");
+		int mmap_flags = MAP_PRIVATE;
+		mmap_flags |= !(ctx->flags & SHIVA_OPTS_F_INTERP_MODE) ? MAP_FIXED : 0;
+		if (interpreter == true) {
+			/*
+			 * NOTE: SHIVA_OPTS_F_INTERP_MODE flag indicates whether or not
+			 * Shiva is executing as an interpreter. If it's being run as an
+			 * interpreter we want base_vaddr to be set to 0. Otherwise if Shiva
+			 * is executing directly then we want to set a specific base address
+			 * for the RTLD and for the target executable. SHIVA_LDSO_BASE or
+			 * SHIVA_TARGET_BASE.
+			 */
+			base_vaddr = !(ctx->flags & SHIVA_OPTS_F_INTERP_MODE) ? SHIVA_LDSO_BASE : 0;
+		} else {
+			base_vaddr = !(ctx->flags & SHIVA_OPTS_F_INTERP_MODE) ? SHIVA_TARGET_BASE : 0;
+		}
 		if (phdr.offset == 0) {
-			int mmap_flags = MAP_ANONYMOUS|MAP_PRIVATE;
-
-			mmap_flags |= !(ctx->flags & SHIVA_OPTS_F_INTERP_MODE) ? MAP_FIXED : 0;
-			if (interpreter == true) {
-				base_vaddr = SHIVA_LDSO_BASE;
-			} else {
-				base_vaddr = SHIVA_TARGET_BASE;
-			}
 			shiva_debug("Attempting to map %#lx\n", base_vaddr);
-			mem = mmap((void *)base_vaddr, phdr.memsz, PROT_READ|PROT_WRITE, mmap_flags, -1, 0);
+			mem = mmap((void *)base_vaddr, phdr.memsz, elfprot, mmap_flags, fd, 0);
 			if (mem == MAP_FAILED) {
 				perror("mmap");
 				exit(EXIT_FAILURE);
 			}
 			base_vaddr = (uint64_t)mem;
+#if 0
 			//mem = (uint8_t *)base_vaddr;
 			res = shiva_ulexec_segment_copy(elfobj, mem, phdr);
 			if (res == false) {
@@ -285,7 +292,7 @@ shiva_ulexec_load_elf_binary(struct shiva_ctx *ctx, elfobj_t *elfobj, bool inter
 				shiva_debug("mprotect: %s\n", strerror(errno));
 				return false;
 			}
-			shiva_debug("mprotect succeeded at %p %zu bytes\n", mem, phdr.memsz);
+#endif
 			continue;
 		}
 		load_addr = base_vaddr + phdr.vaddr;
@@ -300,18 +307,21 @@ shiva_ulexec_load_elf_binary(struct shiva_ctx *ctx, elfobj_t *elfobj, bool inter
 			memsz = ELF_PAGEALIGN(phdr.memsz, 0x1000) +
 			    ELF_PAGEALIGN(phdr.memsz - phdr.filesz, 0x1000);
 		}
-		mem = mmap((void *)load_addr, memsz, PROT_READ|PROT_WRITE,
-		    MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED, -1, 0);
+		mem = mmap((void *)load_addr, memsz,
+		    elfprot, mmap_flags, fd, 
+		    phdr.offset - ELF_PAGEOFFSET(phdr.vaddr));
 		if (mem == MAP_FAILED) {
 			shiva_debug("mmap failed: %s\n", strerror(errno));
 			exit(EXIT_FAILURE);
 		}
+#if 0
 		shiva_ulexec_segment_copy(elfobj, &mem[phdr.vaddr & (PAGE_SIZE - 1)], phdr);
 		if (mprotect(mem, (phdr.memsz + 4095) & ~4095,
 		    elfprot) < 0) {
 			shiva_debug("mprotect: %s\n", strerror(errno));
 			return false;
 		}
+#endif
 	}
 	if (interpreter == false) {
 		shiva_debug("Setting entry point for target: %#lx\n", base_vaddr + elf_entry_point(elfobj));
@@ -332,6 +342,8 @@ shiva_ulexec_prep(struct shiva_ctx *ctx)
 {
 	char *interp = NULL;
 	elf_error_t error;
+	shiva_auxv_iterator_t a_iter;
+	struct shiva_auxv_entry a_entry;
 
 	if (elf_type(&ctx->elfobj) == ET_DYN) {
 		interp = elf_interpreter_path(&ctx->elfobj);
@@ -372,12 +384,10 @@ shiva_ulexec_prep(struct shiva_ctx *ctx)
 		fprintf(stderr, "shiva_ulexec_build_auxv_stack() failed\n");
 		return false;
 	}
-#if 0
 	shiva_auxv_iterator_init(ctx, &a_iter, ctx->ulexec.auxv.vector);
 	while (shiva_auxv_iterator_next(&a_iter, &a_entry) == SHIVA_ITER_OK) {
 		printf("AUXV TYPE: %d AUXV VAL: %#lx\n", a_entry.type, a_entry.value);
 	}
-#endif
 
 #if 0
 	prctl(PR_SET_MM, PR_SET_MM_AUXV, (unsigned long)ctx->ulexec.auxv.vector,
