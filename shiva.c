@@ -270,6 +270,9 @@ shiva_interp_mode(struct shiva_ctx *ctx)
 	 */
 
 	test_mark();
+	printf("RSP: %#lx\n", rsp);
+	uint64_t *ptr = (void *)rsp;
+	printf("stack value: %#lx\n", *ptr);
 	SHIVA_ULEXEC_LDSO_TRANSFER(rsp, ctx->ulexec.ldso.entry_point, entry_point);
 
 	return true;
