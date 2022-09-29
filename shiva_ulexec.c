@@ -381,7 +381,9 @@ shiva_ulexec_load_elf_binary(struct shiva_ctx *ctx, elfobj_t *elfobj, bool inter
 	printf("PAGEOFFSET(%#lx) = %#lx\n", last_vaddr, ELF_PAGEOFFSET(last_vaddr));
 	printf("phdr.filesz: %#lx\n", last_filesz);
 	uint8_t *bss = mem + ELF_PAGEOFFSET(last_vaddr) + last_filesz;
-	printf("Subtracting brk: %#lx from .bss %p\n", ELF_PAGEALIGN(brk_addr, 0x1000) + base_vaddr,
+	brk_addr = ELF_PAGEALIGN((uintptr_t)bss, 0x1000);
+
+	printf("Subtracting brk: %#lx from .bss %p\n", brk_addr,
 	    bss);
 #if 0
 	if (brk(ELF_PAGEALIGN(brk_addr, 0x1000) + base_vaddr) < 0) {
@@ -389,7 +391,7 @@ shiva_ulexec_load_elf_binary(struct shiva_ctx *ctx, elfobj_t *elfobj, bool inter
 		return false;
 	}
 #endif
-	zerolen = ((ELF_PAGEALIGN(brk_addr, 0x1000) + base_vaddr) - (uintptr_t)bss);
+	zerolen = brk_addr - (uintptr_t)bss;
 	printf("zerolen: %d\n", zerolen);
 	memset(bss, 0, zerolen);
 
