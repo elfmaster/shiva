@@ -382,17 +382,19 @@ shiva_ulexec_load_elf_binary(struct shiva_ctx *ctx, elfobj_t *elfobj, bool inter
 	 * Initialize .bss
 	 */
 	size_t nbyte;
-	printf("elf_bss %#lx last_bss: %#lx\n", elf_bss, last_bss);
 	nbyte = ELF_PAGEOFFSET(elf_bss);
 	if (nbyte > 0) {
 		nbyte = 4096 - nbyte;
-		printf("Zeroing remaining bytes of .bss, %zu bytes\n", nbyte);
 		memset((void *)elf_bss, 0, nbyte);
 	}
+	/*
+	 * If the .bss extends beyond the current page of .data
+	 * we must add an anonymous memory mapping to create the
+	 * rest of the .bss.
+	 */
 	elf_bss = ELF_PAGEALIGN(elf_bss, 0x1000);
 	last_bss = ELF_PAGEALIGN(last_bss, 0x1000);
 	if (last_bss > elf_bss) {
-		printf("mapping extended .bss from %#lx to %#lx\n", elf_bss, last_bss);
 		mem = mmap((void *)elf_bss, last_bss - elf_bss,
 		    PROT_READ|PROT_WRITE, MAP_FIXED|MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
 		if (mem == MAP_FAILED) {
@@ -400,25 +402,6 @@ shiva_ulexec_load_elf_binary(struct shiva_ctx *ctx, elfobj_t *elfobj, bool inter
 			exit(EXIT_FAILURE);
 		}
 	}
-#if 0
-	printf("elf_bss: %p last_bss: %p\n", (uintptr_t *)elf_bss, (uintptr_t *)last_bss);
-	size_t zerolen, i;
-	uint8_t *bss = mem + ELF_PAGEOFFSET(last_vaddr) + last_filesz;
-	uint64_t bss_map_addr = ELF_PAGEALIGN((uintptr_t)bss, 0x1000);
-	brk_addr = ELF_PAGEALIGN((uintptr_t)bss + last_memsz - last_filesz, 0x1000);
-	zerolen = brk_addr - (uintptr_t)bss;
-	printf("Zerolen: %d\n", zerolen);
-	printf("bss: %p\n", bss);
-	printf("brk: %#lx\n", brk_addr);
-	uint8_t *old_brk;
-        old_brk = sbrk(0);
-	if (old_brk == -1) {
-		perror("brk");
-		exit(EXIT_FAILURE);
-	}
-	printf("old_brk: %p\n", old_brk);
-	memset(bss, 0, zerolen);
-#endif
 	if (interpreter == false) {
 		shiva_debug("Setting entry point for target: %#lx\n", base_vaddr + elf_entry_point(elfobj));
 		ctx->ulexec.entry_point = base_vaddr + elf_entry_point(elfobj);
