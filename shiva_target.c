@@ -17,6 +17,7 @@ shiva_target_dynamic_set(struct shiva_ctx *ctx, uint64_t tag, uint64_t value)
 	Elf64_Dyn *dyn = NULL;
 
 	for (i = 0; i < elf_segment_count(&ctx->elfobj); i++) {
+		shiva_debug("%d == PT_DYNAMIC(2)\n", phdr[i].p_type);
 		if (phdr[i].p_type != PT_DYNAMIC)
 			continue;
 		dyn = (Elf64_Dyn *)((uint64_t)(phdr[i].p_vaddr + ctx->ulexec.base_vaddr));
@@ -27,6 +28,7 @@ shiva_target_dynamic_set(struct shiva_ctx *ctx, uint64_t tag, uint64_t value)
 		return false;
 	}
 
+	printf("Looking for tag: %d\n", tag);
 	for (i = 0; dyn[i].d_tag != DT_NULL; i++) {
 		if (dyn[i].d_tag == tag) {
 			shiva_debug("Set dynamic tag %d: %#lx\n", dyn[i].d_tag, value);

@@ -1,7 +1,7 @@
 STANDALONE_DIR = './standalone'
 LDSO_DIR = './ldso'
 
-GCC_OPTS_STANDALONE= -fPIC -Wall -ggdb -c -DSHIVA_STANDALONE
+GCC_OPTS_STANDALONE= -fPIC -Wall -ggdb -DDEBUG -c -DSHIVA_STANDALONE
 GCC_OPTS_LDSO= -fPIC -c -ggdb
 OBJ_LIST=shiva.o shiva_util.o shiva_signal.o shiva_ulexec.o shiva_auxv.o	\
     shiva_module.o shiva_trace.o shiva_trace_thread.o shiva_error.o shiva_maps.o shiva_analyze.o \
@@ -44,7 +44,7 @@ standalone:
 	$(CC) $(GCC_OPTS_STANDALONE) shiva_analyze.c -o	shiva_analyze.o
 	$(CC) $(GCC_OPTS_STANDALONE) shiva_callsite.c -o	shiva_callsite.o
 	$(CC) $(GCC_OPTS_STANDALONE) shiva_target.c -o	shiva_target.o
-	$(MUSL) -DSHIVA_STANDALONE -static -Wl,-undefined=system -Wl,-undefined=prctl -Wl,-undefined=pause -Wl,-undefined=puts -Wl,-undefined=putchar $(OBJ_LIST) $(STATIC_LIBS) -o ./standalone/shiva
+	$(MUSL) -DSHIVA_STANDALONE -static -Wl,-undefined=srand -Wl,-undefined=gettimeofday -Wl,-undefined=rand -Wl,-undefined=system -Wl,-undefined=prctl -Wl,-undefined=pause -Wl,-undefined=puts -Wl,-undefined=putchar $(OBJ_LIST) $(STATIC_LIBS) -o ./standalone/shiva
 
 test:
 	gcc test.c -o test -fcf-protection=none

@@ -256,6 +256,9 @@ shiva_interp_mode(struct shiva_ctx *ctx)
 	(void) shiva_target_dynamic_set(ctx, DT_FLAGS, 0);
 	(void) shiva_target_dynamic_set(ctx, DT_FLAGS_1, 0);
 #endif
+	(void) shiva_target_dynamic_set(ctx, DT_FLAGS, 0);
+	(void) shiva_target_dynamic_set(ctx, DT_FLAGS_1, 0);
+
 	/*
 	 * STRICT LINKING (flags: PIE NOW) can be a problem for us since it
 	 * will overwrite any PLT hooks that are set.

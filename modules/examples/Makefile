@@ -8,5 +8,6 @@ all:
 	gcc -mcmodel=large -I ../ -fno-stack-protector -c sandbox.c
 	gcc -mcmodel=large -I ../ -fno-stack-protector -c command_inject.c
 	gcc -mcmodel=large -I ../ -fno-stack-protector -c crackme_bypass.c
+	gcc -mcmodel=large -I ../ -fno-stack-protector -c ldso_fuzz.c
 clean:
 	rm -f *.o
