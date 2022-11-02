@@ -7,6 +7,44 @@
 
 #define MAX_DT_VALUE 30
 
+void *assert_handler(void *arg)
+{
+	shiva_trace_getregs_x86_64(&ctx_global->regs.regset_x86_64);
+
+	struct shiva_ctx *ctx = ctx_global;
+
+	void *retaddr = __builtin_return_address(0);
+	void *frmaddr = __builtin_frame_address(1);
+	struct shiva_trace_handler *handler;
+	struct shiva_trace_bp *bp;
+	uint64_t o_target;
+
+	/*
+	 * Even after we call shakti_store_regs_x86_64 we must
+	 * fix the clobbered rbp, rip, and rdi registers with
+	 * their correct values at the time this handler was
+	 * called.
+	 */
+	ctx->regs.regset_x86_64.rbp = (uint64_t)frmaddr;
+	ctx->regs.regset_x86_64.rip = (uint64_t)retaddr - 5;
+	ctx->regs.regset_x86_64.rdi = (uint64_t)arg;
+
+	handler = shiva_trace_find_handler(ctx, &assert_handler);
+	if (handler == NULL) {
+		printf("Failed to find handler struct for shakti_handler\n");
+		exit(-1);
+	}
+	/*
+	 * Get the shiva_trace_bp struct pointer that correlates
+	 * to the call-hook-breakpoint. Then find the call-hook
+	 * breakpoint that triggered our handler.
+	 */
+	SHIVA_TRACE_BP_STRUCT(bp, handler);
+	printf("LDSO ASSERT CALL\n", bp->call_target_symname);
+	//SHIVA_TRACE_CALL_ORIGINAL(bp);
+
+}
+
 int
 shakti_main(shiva_ctx_t *ctx)
 {
@@ -19,7 +57,13 @@ shakti_main(shiva_ctx_t *ctx)
 	shiva_auxv_iterator_t a_iter;
 	struct shiva_auxv_entry a_entry;
 	uint64_t tag_value, highest_vaddr, rand_val;
+	static int global_count = 0;
+	bool second_run = false;
 
+	if (ctx != ctx_global) {
+		second_run = true;
+		ctx = ctx_global;
+	}
 	printf("LDSO-FUZZ v0.1 (Shiva runtime engine)\n");
 	printf("&ctx->elfobj: %p\n", &ctx->elfobj);
 	if (elf_segment_by_p_type(&ctx->elfobj, PT_DYNAMIC, &phdr) == false) {
@@ -51,6 +95,27 @@ shakti_main(shiva_ctx_t *ctx)
 			break;
 	}
 
+	/*
+	 * Install hook on LDSO calls into __GI___assert_fail()
+	 */
+	if (second_run == false) {
+		printf("SETTING CALL BREAKPOING on 0x101e480\n");
+		res = shiva_trace_register_handler(ctx, (void *)&assert_handler,
+	    	    SHIVA_TRACE_BP_CALL, &error);
+		if (res == false ) {
+			printf("shiva_trace_register_handler() failed\n");
+			return false;
+		}
+		res = shiva_trace_set_breakpoint(ctx, (void *)assert_handler,
+	    	    (uint64_t)0x101e480, NULL, &error);
+		if (res == false) {
+			printf("set breakpoint failed\n");
+			return false;
+		}
+	}
+		/*
+		 * Install hook for LDSO assert calls (__GI___assert_fail)
+		 */
 	printf("Set DTAG %d with %#lx\n", tag_value, rand_val);
 	/*
 	 * Hook the AT_ENTRY value so that it points back to our module after
