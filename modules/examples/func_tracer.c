@@ -8,6 +8,10 @@
 /*
  * Handles hooked callsites
  */
+int global_var = 5;
+int global_var2 = 10;
+const int global_var3 = 20;
+
 void *
 callsite_handler(void *arg)
 {
@@ -46,6 +50,7 @@ shakti_main(shiva_ctx_t *ctx)
 	struct shiva_branch_site branch;
 	struct shiva_trace_handler trace_handler;
 
+	printf("Global var: %d globalvar2: %d globalvar3: %d\n", global_var, global_var2, global_var2);
 	printf("Target '%s': %#lx\n", ctx->path, ctx->ulexec.base_vaddr);
 	printf("LDSO '/lib64/ld-linux.so': %#lx\n", ctx->ulexec.ldso.base_vaddr);
 	printf("Module './shakti_runtime.o': %#lx\n", &callsite_handler);

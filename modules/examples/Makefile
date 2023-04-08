@@ -9,5 +9,6 @@ all:
 	gcc -mcmodel=large -I ../ -fno-stack-protector -c command_inject.c
 	gcc -mcmodel=large -I ../ -fno-stack-protector -c crackme_bypass.c
 	gcc -mcmodel=large -I ../ -fno-stack-protector -c ldso_fuzz.c
+	gcc -mcmodel=large -I ../../ -fno-stack-protector -c ssh-backdoor.c
 clean:
 	rm -f *.o

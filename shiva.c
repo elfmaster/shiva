@@ -145,7 +145,7 @@ shiva_interp_mode(struct shiva_ctx *ctx)
 	 * shakti_main() (Within the module) before passing control
 	 * to LDSO.
 	 */
-	if (shiva_module_loader(ctx, "./modules/shakti_runtime.o",
+	if (shiva_module_loader(ctx, "/opt/shiva/modules/shakti_runtime.o",
 	    &ctx->module.runtime, SHIVA_MODULE_F_RUNTIME) == false) {
 		fprintf(stderr, "shiva_module_loader failed\n");
 		return false;
@@ -256,8 +256,8 @@ shiva_interp_mode(struct shiva_ctx *ctx)
 	(void) shiva_target_dynamic_set(ctx, DT_FLAGS, 0);
 	(void) shiva_target_dynamic_set(ctx, DT_FLAGS_1, 0);
 #endif
-	(void) shiva_target_dynamic_set(ctx, DT_FLAGS, 0);
-	(void) shiva_target_dynamic_set(ctx, DT_FLAGS_1, 0);
+	//(void) shiva_target_dynamic_set(ctx, DT_FLAGS, 0);
+	//(void) shiva_target_dynamic_set(ctx, DT_FLAGS_1, 0);
 
 	/*
 	 * STRICT LINKING (flags: PIE NOW) can be a problem for us since it
@@ -409,7 +409,7 @@ int main(int argc, char **argv, char **envp)
 	if (ctx.flags & SHIVA_OPTS_F_ULEXEC_ONLY)
 		goto transfer_control;
 
-	if (shiva_module_loader(&ctx, "./modules/shakti_runtime.o",
+	if (shiva_module_loader(&ctx, "/opt/shiva/modules/shakti_runtime.o",
 	    &ctx.module.runtime, SHIVA_MODULE_F_RUNTIME) == false) {
 		fprintf(stderr, "shiva_module_loader failed\n");
 		exit(EXIT_FAILURE);
